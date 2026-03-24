@@ -1,0 +1,18 @@
+export const Colors = {
+  primary: '#FF6B9D',
+  secondary: '#FFD166',
+  background: '#FFF5F8',
+  text: '#2D2D2D',
+  textLight: '#888888',
+  card: 'rgba(255,255,255,0.85)',
+  cardBorder: 'rgba(255,107,157,0.15)',
+  glassBg: 'rgba(255,255,255,0.15)',
+  glassBlur: 'rgba(255,255,255,0.6)',
+  white: '#FFFFFF',
+  divider: 'rgba(0,0,0,0.08)',
+  success: '#4CAF50',
+  warning: '#FF9800',
+  danger: '#F44336',
+  streakOrange: '#FF6B35',
+  premiumGold: '#FFD700',
+} as const;

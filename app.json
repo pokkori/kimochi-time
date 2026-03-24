@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "キモチタイム",
+    "slug": "kimochi-time",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "kimochijam",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF5F8"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.kimochijam.app",
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "パートナーが気持ちを送ってきたときにお知らせするために通知を使用します。",
+        "NSMicrophoneUsageDescription": "このアプリはマイクを使用しません。",
+        "UIBackgroundModes": ["audio", "remote-notification"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFF5F8"
+      },
+      "package": "com.kimochijam.app",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "INTERNET"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF6B9D",
+          "sounds": [
+            "./assets/audio/se_receive.wav"
+          ]
+        }
+      ],
+      "expo-av"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
