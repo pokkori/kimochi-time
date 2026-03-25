@@ -3,17 +3,25 @@
  */
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withSequence,
+} from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { AdBanner } from '../../components/AdBanner';
 import { EmotionButton } from '../../components/EmotionButton';
@@ -42,6 +50,49 @@ import { INTERSTITIAL_DAILY_LIMIT, INTERSTITIAL_INTERVAL } from '../../constants
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
+// ─── ムードセル: タップ時スプリングバウンス ───────────────────────────────
+interface AnimatedMoodCellProps {
+  mood: import('../../constants/moods').Mood;
+  selected: boolean;
+  onPress: () => void;
+  cellStyle: object | object[];
+}
+
+function AnimatedMoodCell({ mood, selected, onPress, cellStyle }: AnimatedMoodCellProps) {
+  const scale = useSharedValue(1);
+
+  const handlePress = useCallback(() => {
+    // scale 1→1.3→1.0 spring bounce
+    scale.value = withSequence(
+      withSpring(1.3, { damping: 8, stiffness: 300 }),
+      withSpring(1.0, { damping: 8, stiffness: 300 }),
+    );
+    onPress();
+  }, [onPress, scale]);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        style={cellStyle}
+        onPress={handlePress}
+        accessibilityRole="radio"
+        accessibilityLabel={mood.label}
+        accessibilityState={{ selected }}
+      >
+        <MoodIcon mood={mood} size={32} selected={selected} />
+        <Text style={[styles.moodCellLabel, { color: mood.color }]}>
+          {mood.label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── ミュートアイコン ─────────────────────────────────────────────────────
 function MuteIcon({ muted, color }: { muted: boolean; color: string }) {
   if (muted) {
     return (
@@ -226,29 +277,23 @@ export default function HomeScreen() {
             accessibilityLabel="8種のムードアイコンから選んでください"
           >
             {MOODS.map((mood) => (
-              <TouchableOpacity
+              <AnimatedMoodCell
                 key={mood.id}
-                style={[
+                mood={mood}
+                selected={selectedMood?.id === mood.id}
+                onPress={() => {
+                  setSelectedMood(mood);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playSE('tap');
+                }}
+                cellStyle={[
                   styles.moodCell,
                   selectedMood?.id === mood.id && {
                     backgroundColor: mood.color + '33',
                     borderColor: mood.color,
                   },
                 ]}
-                onPress={() => {
-                  setSelectedMood(mood);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  playSE('tap');
-                }}
-                accessibilityRole="radio"
-                accessibilityLabel={mood.label}
-                accessibilityState={{ selected: selectedMood?.id === mood.id }}
-              >
-                <MoodIcon mood={mood} size={32} selected={selectedMood?.id === mood.id} />
-                <Text style={[styles.moodCellLabel, { color: mood.color }]}>
-                  {mood.label}
-                </Text>
-              </TouchableOpacity>
+              />
             ))}
           </View>
         </Animated.View>

@@ -16,7 +16,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  useDerivedValue,
+  withSpring,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { MoodIcon } from '../../components/MoodIcon';
 import { getMoodById, MOODS } from '../../constants/moods';
 import {
@@ -33,9 +42,22 @@ const CALENDAR_DAYS = 14;
 
 function SyncRateCircle({ rate }: { rate: number }) {
   const scale = useSharedValue(0.6);
+  // カウントアップ用: 0 → rate を 1.2秒で進める
+  const countProgress = useSharedValue(0);
+  const [displayRate, setDisplayRate] = useState(0);
+
+  // JS スレッドで表示値を更新するためのderivedValue
+  useDerivedValue(() => {
+    const current = Math.round(countProgress.value);
+    runOnJS(setDisplayRate)(current);
+  });
 
   useEffect(() => {
+    // サークルのスプリング
     scale.value = withSpring(1, { damping: 8, stiffness: 300 });
+    // カウントアップ: 0 → rate まで1.2秒
+    countProgress.value = 0;
+    countProgress.value = withTiming(rate, { duration: 1200 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rate]);
 
@@ -45,7 +67,7 @@ function SyncRateCircle({ rate }: { rate: number }) {
 
   return (
     <Animated.View style={[styles.syncCircle, animStyle]}>
-      <Text style={styles.syncRateNumber}>{rate}</Text>
+      <Text style={styles.syncRateNumber}>{displayRate}</Text>
       <Text style={styles.syncRatePercent}>%</Text>
       <Text style={styles.syncRateLabel}>シンクロ率</Text>
     </Animated.View>
