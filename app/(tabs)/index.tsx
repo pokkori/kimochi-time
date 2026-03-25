@@ -64,9 +64,20 @@ export default function HomeScreen() {
   const [showParticle, setShowParticle] = useState(false);
   const [sentEmotion, setSentEmotion] = useState<Emotion | null>(null);
 
-  // モック: パートナーの最新気分（Supabase Realtime 接続後に置き換え）
-  const [partnerEmotion] = useState<number | undefined>(7);
+  // パートナーの最新気分（AsyncStorageからキャッシュ取得・Supabase Realtime接続後に置き換え）
+  const [partnerEmotion, setPartnerEmotion] = useState<number | undefined>(undefined);
   const partnerName = 'パートナー';
+
+  useEffect(() => {
+    // ローカルの最新送信感情をパートナー欄に反映（デモ: 実際はSupabase Realtimeで取得）
+    import('../../lib/emotionStorage').then(({ getEmotionLogsAsync }) => {
+      getEmotionLogsAsync().then((logs) => {
+        if (logs.length > 0) {
+          setPartnerEmotion(logs[0].emotionId);
+        }
+      }).catch(() => {});
+    });
+  }, []);
 
   useEffect(() => {
     playBGM();
@@ -101,6 +112,8 @@ export default function HomeScreen() {
       // パーティクルアニメーション
       setShowParticle(true);
       setSentEmotion(selectedEmotion);
+      // 送信後にパートナー表示を更新（ローカルデモ）
+      setPartnerEmotion(selectedEmotion.id);
 
       // インタースティシャル広告判定（7回に1回・1日2回上限）
       if (sendCount % INTERSTITIAL_INTERVAL === 0) {
