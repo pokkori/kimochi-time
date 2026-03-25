@@ -39,6 +39,16 @@ function ProfileIcon({ color }: { color: string }) {
   );
 }
 
+function SyncIcon({ color }: { color: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" stroke={color} strokeWidth={1.8} />
+      <Path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4-1.79 4-4 4" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M12 8v1M12 15v1M8 12h1M15 12h1" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
 export default function TabLayout() {
   return (
     <Tabs
@@ -75,6 +85,14 @@ export default function TabLayout() {
           title: '履歴',
           tabBarIcon: ({ color }) => <HistoryIcon color={color} />,
           tabBarAccessibilityLabel: '送信履歴画面',
+        }}
+      />
+      <Tabs.Screen
+        name="sync"
+        options={{
+          title: 'シンクロ',
+          tabBarIcon: ({ color }) => <SyncIcon color={color} />,
+          tabBarAccessibilityLabel: 'シンクログラフ画面',
         }}
       />
       <Tabs.Screen

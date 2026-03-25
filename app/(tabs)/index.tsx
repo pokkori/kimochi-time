@@ -17,11 +17,14 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 import { AdBanner } from '../../components/AdBanner';
 import { EmotionButton } from '../../components/EmotionButton';
+import { MoodIcon } from '../../components/MoodIcon';
+import { MoodParticles } from '../../components/MoodParticles';
 import { PartnerAvatar } from '../../components/PartnerAvatar';
 import { SendAnimation } from '../../components/SendAnimation';
 import { StreakBadge } from '../../components/StreakBadge';
 import { Colors } from '../../constants/colors';
 import { EMOTIONS, Emotion } from '../../constants/emotions';
+import { getMoodById, MOODS, Mood } from '../../constants/moods';
 import { useAudio } from '../../hooks/useAudio';
 import { useStreak } from '../../hooks/useStreak';
 import {
@@ -31,6 +34,7 @@ import {
   incrementDailyAdCountAsync,
   incrementSendCountAsync,
 } from '../../lib/emotionStorage';
+import { calculateSyncRateAsync, saveMoodEntryAsync } from '../../lib/moodLog';
 import {
   sendStreakMilestoneNotificationAsync,
 } from '../../lib/notifications';
@@ -64,6 +68,13 @@ export default function HomeScreen() {
   const [showParticle, setShowParticle] = useState(false);
   const [sentEmotion, setSentEmotion] = useState<Emotion | null>(null);
 
+  // 8種ムード選択（差別化機能）
+  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
+  const [showMoodParticles, setShowMoodParticles] = useState(false);
+  const [moodParticleColor, setMoodParticleColor] = useState('#FF6B9D');
+  // シンクロ率バナー
+  const [syncRate, setSyncRate] = useState<number | null>(null);
+
   // パートナーの最新気分（AsyncStorageからキャッシュ取得・Supabase Realtime接続後に置き換え）
   const [partnerEmotion, setPartnerEmotion] = useState<number | undefined>(undefined);
   const partnerName = 'パートナー';
@@ -81,6 +92,8 @@ export default function HomeScreen() {
 
   useEffect(() => {
     playBGM();
+    // シンクロ率を非同期ロード
+    calculateSyncRateAsync(30).then(setSyncRate).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -114,6 +127,16 @@ export default function HomeScreen() {
       setSentEmotion(selectedEmotion);
       // 送信後にパートナー表示を更新（ローカルデモ）
       setPartnerEmotion(selectedEmotion.id);
+
+      // ムード送信（差別化機能: シンクログラフ用）
+      if (selectedMood) {
+        await saveMoodEntryAsync(selectedMood.id);
+        // ムードパーティクル演出
+        setMoodParticleColor(selectedMood.color);
+        setShowMoodParticles(true);
+        // シンクロ率を再計算して更新
+        calculateSyncRateAsync(30).then(setSyncRate).catch(() => {});
+      }
 
       // インタースティシャル広告判定（7回に1回・1日2回上限）
       if (sendCount % INTERSTITIAL_INTERVAL === 0) {
@@ -163,6 +186,27 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </Animated.View>
 
+        {/* シンクロ率バナー（差別化機能） */}
+        {syncRate !== null && (
+          <Animated.View entering={FadeInDown.delay(80).duration(400)}>
+            <TouchableOpacity
+              style={styles.syncBanner}
+              onPress={() => router.push('/(tabs)/sync')}
+              accessibilityRole="button"
+              accessibilityLabel={`ふたりのシンクロ率${syncRate}パーセント。タップで詳細を見る`}
+              accessibilityHint="シンクログラフ画面を開きます"
+            >
+              <View style={styles.syncBannerLeft}>
+                <Text style={styles.syncBannerTitle}>シンクロ率</Text>
+                <Text style={styles.syncBannerRate}>
+                  {syncRate}<Text style={styles.syncBannerPct}>%</Text>
+                </Text>
+              </View>
+              <Text style={styles.syncBannerArrow}>詳細 &gt;</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* パートナーの気持ち */}
         <Animated.View entering={FadeInDown.delay(100).duration(400)} style={styles.partnerCard}>
           <Text style={styles.partnerTitle}>パートナーの今の気持ち</Text>
@@ -171,6 +215,42 @@ export default function HomeScreen() {
             name={partnerName}
             size={72}
           />
+        </Animated.View>
+
+        {/* 8種ムード選択（差別化: シンクログラフ連携） */}
+        <Animated.View entering={FadeInDown.delay(170).duration(400)} style={styles.section}>
+          <Text style={styles.sectionTitle}>今の気持ちをアイコンで選ぶ</Text>
+          <View
+            style={styles.moodGrid}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="8種のムードアイコンから選んでください"
+          >
+            {MOODS.map((mood) => (
+              <TouchableOpacity
+                key={mood.id}
+                style={[
+                  styles.moodCell,
+                  selectedMood?.id === mood.id && {
+                    backgroundColor: mood.color + '33',
+                    borderColor: mood.color,
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedMood(mood);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playSE('tap');
+                }}
+                accessibilityRole="radio"
+                accessibilityLabel={mood.label}
+                accessibilityState={{ selected: selectedMood?.id === mood.id }}
+              >
+                <MoodIcon mood={mood} size={32} selected={selectedMood?.id === mood.id} />
+                <Text style={[styles.moodCellLabel, { color: mood.color }]}>
+                  {mood.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </Animated.View>
 
         {/* 感情ボタングリッド */}
@@ -241,11 +321,18 @@ export default function HomeScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* パーティクルアニメーション */}
+      {/* パーティクルアニメーション（9段階感情） */}
       <SendAnimation
         color={showParticle ? (sentEmotion?.color ?? Colors.primary) : Colors.primary}
         visible={showParticle}
         onComplete={handleParticleComplete}
+      />
+
+      {/* ムードパーティクル演出（8種ムード選択時） */}
+      <MoodParticles
+        color={moodParticleColor}
+        visible={showMoodParticles}
+        onComplete={() => setShowMoodParticles(false)}
       />
 
       {/* AdMob バナー */}
@@ -396,5 +483,70 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: Colors.primary,
+  },
+  // シンクロ率バナー
+  syncBanner: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(45,212,191,0.12)',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    minHeight: 56,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(45,212,191,0.35)',
+  },
+  syncBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  syncBannerTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2DD4BF',
+  },
+  syncBannerRate: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#FFD93D',
+  },
+  syncBannerPct: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFD93D',
+  },
+  syncBannerArrow: {
+    fontSize: 13,
+    color: 'rgba(45,212,191,0.7)',
+    fontWeight: '600',
+  },
+  // 8種ムードグリッド
+  moodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  moodCell: {
+    width: (SCREEN_W - 40 - 8 * 3) / 4,
+    minHeight: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(0,0,0,0.06)',
+  },
+  moodCellLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });

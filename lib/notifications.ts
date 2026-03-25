@@ -33,18 +33,24 @@ export async function scheduleDailyReminderAsync(): Promise<void> {
 
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  // 毎日21:00 未送信リマインダー（週3本相当: 月・水・金のみ送る設計はクライアント側では困難なため毎日に設定し頻度は1日1本に制限）
+  // 毎日20:00 キモチ送信リマインダー（差別化: パートナーへの感情共有促進）
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'キモチタイム',
+      body: '今日のキモチを届けよう',
+      sound: true,
+    },
+    trigger: { hour: 20, minute: 0, repeats: true } as any,
+  });
+
+  // 毎日21:00 記録フォローアップ
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'キモチタイム',
       body: '今日のきもちを記録しましたか？',
       sound: true,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 21,
-      minute: 0,
-    },
+    trigger: { hour: 21, minute: 0, repeats: true } as any,
   });
 
   // 初回は穏やかなメッセージ（23:00危機通知は除外してUX改善）
@@ -56,6 +62,21 @@ export async function sendPartnerReceivedNotificationAsync(partnerName: string):
     content: {
       title: 'キモチタイム',
       body: `${partnerName}さんから気持ちが届きました`,
+      sound: true,
+    },
+    trigger: null,
+  });
+}
+
+/** パートナーがムードを送信したときの即時通知（Supabase webhook受信時に呼び出し） */
+export async function sendPartnerMoodNotificationAsync(
+  partnerName: string,
+  moodLabel: string,
+): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'キモチタイム',
+      body: `${partnerName}さんが「${moodLabel}」な気持ちを届けました`,
       sound: true,
     },
     trigger: null,
